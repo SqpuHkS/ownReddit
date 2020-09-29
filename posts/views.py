@@ -1,9 +1,10 @@
 from django.shortcuts import render
 
 from rest_framework import generics, permissions
+from rest_framework.exceptions import ValidationError
 
-from .models import Post
-from .serializers import PostSerializer
+from .models import Post, Vote
+from .serializers import PostSerializer, VoteSerializer
 
 
 
@@ -15,3 +16,21 @@ class PostList(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+class VoteCreate(generics.CreateAPIView):
+    serializer_class = VoteSerializer
+    #who have permission to call this api
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        post = Post.objects.get(pk=self.kwargs['pk'])
+        return Vote.objects.filter(user=user, post=post)
+
+    def perform_create(self, serializer):
+        if self.get_queryset().exists():
+            raise ValidationError('This vote has been done already')
+        serializer.save(
+            user=self.request.user,
+            post=Post.objects.get(pk=self.kwargs['pk']),
+        )
